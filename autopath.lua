@@ -345,13 +345,6 @@ ashita.events.register('command', 'command_cb', function(e)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath delete <name>"))
             end
-        elseif table.contains({'debug'}, command_args[2]) then
-            local path = fuzzy_match_path_by_name(command_args[3])
-            if path then
-                print(path.name)
-            else
-                print("No path found")
-            end
         elseif command_args[2] then
             local path_name = command_args[2]
             play_path(path_name)
