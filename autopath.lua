@@ -172,6 +172,12 @@ local function play_path(path_name)
         return
     end
 
+    local current_position = get_position()
+    if ( path.nodes[1].zone ~= current_position.zone ) then
+        print(chat.header('autopath') .. chat.message("You are not in the correct zone to start this path"))
+        return
+    end
+
     autopath.playing = true
     for _, node in ipairs(path.nodes) do
         if ( not autopath.playing ) then
@@ -266,6 +272,10 @@ ashita.events.register('command', 'command_cb', function(e)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath delete <name>"))
             end
+        elseif command_args[2] then
+            local path_name = command_args[2]
+            print(chat.header('autopath') .. chat.message(string.format("Playing %s", path_name)))
+            play_path(path_name)
         else
             print(chat.header('autopath') .. chat.message("/autopath record <name> - Begins recording path"))
             print(chat.header('autopath') .. chat.message("/autopath stop - Stop recording or playing path"))
