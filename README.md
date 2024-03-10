@@ -8,4 +8,6 @@ An Ashita4 addon for recording and playing back paths.
 /autopath play <name> - Play a path
 /autopath delete <name> - Delete a path
 /autopath list - List paths
+/autopath config - List configs
+/autopath config <key> <value> - Updates config
 ```
