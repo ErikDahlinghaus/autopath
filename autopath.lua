@@ -145,7 +145,7 @@ local function move_to_position(target_position)
         end
 
         local delta_dist = math.sqrt(math.pow(d_x, 2) + math.pow(d_y, 2))
-        if ( delta_dist <= 0.5 ) then
+        if ( delta_dist <= 1 ) then
             at_position = true
         end
 
@@ -322,6 +322,11 @@ ashita.events.register('command', 'command_cb', function(e)
         elseif table.contains({'play'}, command_args[2]) then
             local path_name = command_args[3]
             if path_name then
+                if ( autopath.playing ) then
+                    autopath.playing = false
+                    print(chat.header('autopath') .. chat.message("Stopped"))
+                    coroutine.sleep(0.1)
+                end
                 play_path(path_name)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath play <name>"))
@@ -347,6 +352,11 @@ ashita.events.register('command', 'command_cb', function(e)
             end
         elseif command_args[2] then
             local path_name = command_args[2]
+            if ( autopath.playing ) then
+                autopath.playing = false
+                print(chat.header('autopath') .. chat.message("Stopped"))
+                coroutine.sleep(0.1)
+            end
             play_path(path_name)
         else
             print(chat.header('autopath') .. chat.message("/autopath record <name> - Begins recording path"))
