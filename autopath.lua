@@ -11,6 +11,7 @@ addon.link = 'https://github.com/ErikDahlinghaus/autopath'
 local default_settings = T{
     record_interval = 0.3,
     max_distance_to_path = 20,
+    max_distance_to_node = 0.6,
     paths = T{}
 }
 
@@ -145,7 +146,7 @@ local function move_to_position(target_position)
         end
 
         local delta_dist = math.sqrt(math.pow(d_x, 2) + math.pow(d_y, 2))
-        if ( delta_dist <= 1 ) then
+        if ( delta_dist <= autopath.settings.max_distance_to_node ) then
             at_position = true
         end
 
@@ -349,6 +350,24 @@ ashita.events.register('command', 'command_cb', function(e)
                 delete_path_by_name(path_name)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath delete <name>"))
+            end
+        elseif table.contains({'config'}, command_args[2]) then
+            local update_key = command_args[3]
+            local update_value = command_args[4]
+
+            if ( not update_key and not update_value ) then
+                for key, value in pairs(autopath.settings) do
+                    if key ~= 'paths' then
+                        print(chat.header('autopath') .. chat.message(string.format("%s = %s", key, value)))
+                    end
+                end
+            elseif ( update_key and not update_value ) then
+                local value = autopath.settings[update_key]
+                print(chat.header('autopath') .. chat.message(string.format("%s = %s", update_key, value)))
+            elseif ( update_key and update_value ) then
+                autopath.settings[update_key] = update_value
+                settings.save()
+                print(chat.header('autopath') .. chat.message(string.format("%s = %s", update_key, autopath.settings[update_key])))
             end
         elseif command_args[2] then
             local path_name = command_args[2]
