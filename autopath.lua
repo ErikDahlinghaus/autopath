@@ -52,7 +52,6 @@ end
 function deduplicate_nodes(path_nodes)
     local seen_nodes = {}
     local deduplicated_nodes = {}
-
     for _, node in ipairs(path_nodes) do
         local is_duplicate = false
 
@@ -99,7 +98,6 @@ end
 
 local function get_position()
     local player = GetPlayerEntity()
-
     local iterations = 100
     while ( not player and iterations ~= 0 ) do
         player = GetPlayerEntity()
@@ -124,7 +122,6 @@ local function move_to_position(target_position)
     local autofollow = AshitaCore:GetMemoryManager():GetAutoFollow()
     local at_position = false
     local iterations = 100
-
     while ( not at_position and autopath.playing ) do
         local current_position = get_position()
         if ( not current_position ) then
@@ -136,7 +133,6 @@ local function move_to_position(target_position)
 
         local d_x = current_position.x - target_position.x
         local d_y = current_position.y - target_position.y
-
         autofollow:SetFollowDeltaX(-d_x);
         autofollow:SetFollowDeltaY(-d_y);
 
@@ -167,7 +163,6 @@ end
 
 function calculate_fuzzy_score(str1, str2)
     local common_prefix = 0
-
     for i = 1, math.min(#str1, #str2) do
         if str1:sub(i, i) == str2:sub(i, i) then
             common_prefix = common_prefix + 1
@@ -194,7 +189,6 @@ function fuzzy_match_path_by_name(path_name)
 
     local best_path = nil
     local best_score = -1
-
     for _, potential_path in ipairs(autopath.settings.paths) do
         local score = calculate_fuzzy_score(path_name, potential_path.name)
 
@@ -209,12 +203,10 @@ end
 
 local function find_closest_node(nodes)
     local current_position = get_position()
-
     local closest_node = T{
         index = nil,
         distance = math.huge
     }
-    
     for i, node in ipairs(nodes) do
         if current_position.zone ~= node.zone then
             goto continue
@@ -237,6 +229,12 @@ local function find_closest_node(nodes)
 end
 
 local function play_path(path_name)
+    if ( autopath.playing ) then
+        autopath.playing = false
+        print(chat.header('autopath') .. chat.message("Stopped previous path"))
+        coroutine.sleep(0.1)
+    end
+
     local path = fuzzy_match_path_by_name(path_name)
     if ( not path ) then
         print(chat.header('autopath') .. chat.message(string.format("Could not find path by name %s", path_name)))
@@ -244,7 +242,6 @@ local function play_path(path_name)
     end
 
     print(chat.header('autopath') .. chat.message(string.format("Playing %s", path.name)))
-
     local closest_node = find_closest_node(path.nodes)
     if ( closest_node.distance >= autopath.settings.max_distance_to_path ) then
         print(chat.header('autopath') .. chat.message("Too far from path to start"))
@@ -253,10 +250,10 @@ local function play_path(path_name)
 
     autopath.playing = true
     for i = closest_node.index, #path.nodes do
-
         local node = path.nodes[i]
         if ( not autopath.playing ) then
-            break
+            autopath.playing = false
+            return
         end
 
         local success = move_to_position(node)
@@ -275,7 +272,6 @@ end
 local function record_path(path_name)
     autopath.recording = true
     nodes = T{}
-
     while( autopath.recording ) do
         local position = get_position()
         if ( not position ) then
@@ -293,8 +289,8 @@ local function record_path(path_name)
         name = path_name,
         nodes = deduplicate_nodes(nodes)
     }
-
     save_path(path)
+    
     return true
 end
 
@@ -308,6 +304,17 @@ end)
 ashita.events.register('unload', 'unload_cb', function()
     settings.save()
 end)
+
+local function valid_config_keys()
+    local valid_keys = T{}
+    for key, value in pairs(autopath.settings) do
+        if key ~= 'paths' then
+            table.insert(valid_keys, key)
+        end
+    end
+
+    return valid_keys
+end
 
 ashita.events.register('command', 'command_cb', function(e)
     local command_args = e.command:lower():args()
@@ -323,11 +330,6 @@ ashita.events.register('command', 'command_cb', function(e)
         elseif table.contains({'play'}, command_args[2]) then
             local path_name = command_args[3]
             if path_name then
-                if ( autopath.playing ) then
-                    autopath.playing = false
-                    print(chat.header('autopath') .. chat.message("Stopped"))
-                    coroutine.sleep(0.1)
-                end
                 play_path(path_name)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath play <name>"))
@@ -362,20 +364,25 @@ ashita.events.register('command', 'command_cb', function(e)
                     end
                 end
             elseif ( update_key and not update_value ) then
+                if not table.contains(valid_config_keys(), update_key) then
+                    print(chat.header('autopath') .. chat.message(string.format("%s is not a valid config key", update_key)))
+                    return
+                end
+
                 local value = autopath.settings[update_key]
                 print(chat.header('autopath') .. chat.message(string.format("%s = %s", update_key, value)))
             elseif ( update_key and update_value ) then
+                if not table.contains(valid_config_keys(), update_key) then
+                    print(chat.header('autopath') .. chat.message(string.format("%s is not a valid config key", update_key)))
+                    return
+                end
+
                 autopath.settings[update_key] = update_value
                 settings.save()
                 print(chat.header('autopath') .. chat.message(string.format("%s = %s", update_key, autopath.settings[update_key])))
             end
         elseif command_args[2] then
             local path_name = command_args[2]
-            if ( autopath.playing ) then
-                autopath.playing = false
-                print(chat.header('autopath') .. chat.message("Stopped"))
-                coroutine.sleep(0.1)
-            end
             play_path(path_name)
         else
             print(chat.header('autopath') .. chat.message("/autopath record <name> - Begins recording path"))
