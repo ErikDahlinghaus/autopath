@@ -98,8 +98,15 @@ end
 
 local function get_position()
     local player = GetPlayerEntity()
+    
+    local iterations = 100
+    while ( not player and iterations ~= 0 ) do
+        player = GetPlayerEntity()
+        iterations = iterations - 1
+        coroutine.sleep(0.1)
+    end
 
-    if (player == nil) then
+    if ( not player ) then
         print(chat.header('autopath') .. chat.message("Error while getting position -- Player Entity nil"))
         return
     end
@@ -174,16 +181,22 @@ local function find_closest_node(nodes)
         distance = math.huge
     }
     
-    for i, node_position in ipairs(nodes) do
+    for i, node in ipairs(nodes) do
+        if current_position.zone ~= node.zone then
+            goto continue
+        end
+
         local distance = math.sqrt(
-            (node_position.x - current_position.x)^2 +
-            (node_position.y - current_position.y)^2
+            (node.x - current_position.x)^2 +
+            (node.y - current_position.y)^2
         )
 
         if distance < closest_node.distance then
             closest_node.distance = distance
             closest_node.index = i
         end
+
+        ::continue::
     end
 
     return closest_node
@@ -193,12 +206,6 @@ local function play_path(path_name)
     local path = path_by_name(path_name)
     if ( not path ) then
         print(chat.header('autopath') .. chat.message(string.format("Could not find path by name %s", path_name)))
-        return
-    end
-
-    local current_position = get_position()
-    if ( path.nodes[1].zone ~= current_position.zone ) then
-        print(chat.header('autopath') .. chat.message("You are not in the correct zone to start this path"))
         return
     end
 
