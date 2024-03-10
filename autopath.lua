@@ -98,7 +98,7 @@ end
 
 local function get_position()
     local player = GetPlayerEntity()
-    
+
     local iterations = 100
     while ( not player and iterations ~= 0 ) do
         player = GetPlayerEntity()
@@ -164,6 +164,36 @@ local function move_to_position(target_position)
     return true
 end
 
+function calculate_fuzzy_score(str1, str2)
+    local common_prefix = 0
+
+    for i = 1, math.min(#str1, #str2) do
+        if str1:sub(i, i) == str2:sub(i, i) then
+            common_prefix = common_prefix + 1
+        else
+            break
+        end
+    end
+
+    return common_prefix
+end
+
+function fuzzy_match_path_by_name(path_name)
+    local best_path = nil
+    local best_score = -1
+
+    for _, potential_path in ipairs(autopath.settings.paths) do
+        local score = calculate_fuzzy_score(path_name, potential_path.name)
+
+        if score > best_score then
+            best_score = score
+            best_path = potential_path
+        end
+    end
+
+    return best_path
+end
+
 local function path_by_name(path_name)
     for _, path in ipairs(autopath.settings.paths) do
         if path['name'] == path_name then
@@ -203,11 +233,13 @@ local function find_closest_node(nodes)
 end
 
 local function play_path(path_name)
-    local path = path_by_name(path_name)
+    local path = fuzzy_match_path_by_name(path_name)
     if ( not path ) then
         print(chat.header('autopath') .. chat.message(string.format("Could not find path by name %s", path_name)))
         return
     end
+
+    print(chat.header('autopath') .. chat.message(string.format("Playing %s", path.name)))
 
     local closest_node = find_closest_node(path.nodes)
     if ( closest_node.distance >= autopath.settings.max_distance_to_path ) then
@@ -287,7 +319,6 @@ ashita.events.register('command', 'command_cb', function(e)
         elseif table.contains({'play'}, command_args[2]) then
             local path_name = command_args[3]
             if path_name then
-                print(chat.header('autopath') .. chat.message(string.format("Playing %s", path_name)))
                 play_path(path_name)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath play <name>"))
@@ -313,7 +344,6 @@ ashita.events.register('command', 'command_cb', function(e)
             end
         elseif command_args[2] then
             local path_name = command_args[2]
-            print(chat.header('autopath') .. chat.message(string.format("Playing %s", path_name)))
             play_path(path_name)
         else
             print(chat.header('autopath') .. chat.message("/autopath record <name> - Begins recording path"))
