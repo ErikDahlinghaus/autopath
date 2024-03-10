@@ -299,7 +299,7 @@ end
 
 settings.register('settings', 'settings_update', function (s)
     if (s ~= nil) then
-        todbot.settings = s
+        autopath.settings = s
     end
     settings.save()
 end)
