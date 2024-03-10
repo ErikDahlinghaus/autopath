@@ -187,7 +187,7 @@ function fuzzy_match_path_by_name(path_name)
         end
     end
     
-    if matches > 1 then
+    if matches > 1 or matches < 1 then
         return nil
     end
 
