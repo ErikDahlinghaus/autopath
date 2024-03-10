@@ -383,7 +383,8 @@ ashita.events.register('command', 'command_cb', function(e)
             print(chat.header('autopath') .. chat.message("/autopath play <name> - Play a path"))
             print(chat.header('autopath') .. chat.message("/autopath delete <name> - Delete a path"))
             print(chat.header('autopath') .. chat.message("/autopath list - List paths"))
-
+            print(chat.header('autopath') .. chat.message("/autopath config - List configs"))
+            print(chat.header('autopath') .. chat.message("/autopath config <key> <value> - Updates config"))
         end
     end
     return false
