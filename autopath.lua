@@ -1,59 +1,7 @@
-require('common')
-local chat = require('chat')
-local settings = require('settings')
-
-addon.name = 'autopath'
-addon.author = 'gnubeardo'
-addon.version = '1.0'
-addon.desc = 'Records and plays back paths'
-addon.link = 'https://github.com/ErikDahlinghaus/autopath'
-
-local default_settings = T{
-    record_interval = 0.3
-}
-
-local a_path = T{
-    name = "mypath",
-    nodes = T{
-        T{ zone = 204, x = 1, y = 1, z = 1 },
-        T{ zone = 204, x = 2, y = 2, z = 2 }
-    }
-}
-
-local autopath = T{
-    settings = settings.load(default_settings),
-    recording = false,
-    playing = false,
-    paths = T{
-        a_path
-    }
-}
-
-local function print_paths()
-    for _key, path in pairs(autopath.paths) do
-        print(chat.header('autopath') .. chat.message(path.name))
-    end
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local function print_table(tbl, indent)
+local function print_table(node, indent)
     indent = indent or 0
 
-    for key, value in pairs(tbl) do
+    for key, value in pairs(node) do
         if type(value) == "table" then
             print((" "):rep(indent) .. key .. ":")
             print_table(value, indent + 2)
@@ -92,26 +40,108 @@ function copyAndModify(original, keyToModify, newValue)
     return copy
 end
 
+require('common')
+local chat = require('chat')
+local settings = require('settings')
 
+addon.name = 'autopath'
+addon.author = 'gnubeardo'
+addon.version = '1.0'
+addon.desc = 'Records and plays back paths'
+addon.link = 'https://github.com/ErikDahlinghaus/autopath'
 
+local default_settings = T{
+    record_interval = 0.3,
+    paths = T{}
+}
 
+local autopath = T{
+    settings = settings.load(default_settings),
+    recording = false,
+    playing = false
+}
 
+local function tables_are_equal(table1, table2)
+    if type(table1) ~= "table" or type(table2) ~= "table" then
+        return false
+    end
 
+    for key, value in pairs(table1) do
+        if type(value) == "table" then
+            if not tables_are_equal(value, table2[key]) then
+                return false
+            end
+        elseif table2[key] ~= value then
+            return false
+        end
+    end
 
+    for key, value in pairs(table2) do
+        if type(value) == "table" then
+            if not tables_are_equal(value, table1[key]) then
+                return false
+            end
+        elseif table1[key] ~= value then
+            return false
+        end
+    end
 
+    return true
+end
 
+function deduplicate_nodes(path_nodes)
+    local seen_nodes = {}
+    local deduplicated_nodes = {}
 
+    for _, node in ipairs(path_nodes) do
+        local is_duplicate = false
 
+        for _, seen_node in ipairs(seen_nodes) do
+            if tables_are_equal(node, seen_node) then
+                is_duplicate = true
+                break
+            end
+        end
 
+        if not is_duplicate then
+            table.insert(seen_nodes, node)
+            table.insert(deduplicated_nodes, node)
+        end
+    end
 
+    return deduplicated_nodes
+end
 
+local function save_path(new_path)
+    for i, path in ipairs(autopath.settings.paths) do
+        if path['name'] == new_path.name then
+            autopath.settings.paths[i] = new_path
+            return
+        end
+    end
 
+    table.insert(autopath.settings.paths, new_path)
+    settings.save()
+end
+
+local function delete_path_by_name(path_name)
+    for i, path in ipairs(autopath.settings.paths) do
+        if path['name'] == path_name then
+            table.remove(autopath.settings.paths, i)
+            print(chat.header('autopath') .. chat.message(string.format("Deleted path %s", path_name)))
+            settings.save()
+            return
+        end
+    end
+    
+    print(chat.header('autopath') .. chat.message(string.format("No path to delete named %s", path_name)))
+end
 
 local function get_position()
     local player = GetPlayerEntity()
 
     if (player == nil) then
-        print(chat.header('autopath') .. chat.message("Player Entity Nil"))
+        print(chat.header('autopath') .. chat.message("Error while getting position -- Player Entity nil"))
         return
     end
 
@@ -128,8 +158,15 @@ local function move_to_position(target_position)
     local at_position = false
     local iterations = 100
 
-    while (not at_position and iterations > 0 and autopath.playing) do
+    while ( not at_position and autopath.playing ) do
         local current_position = get_position()
+        if ( not current_position ) then
+            print(chat.header('autopath') .. chat.message("Could not get current position"))
+            autopath.playing = false
+            autofollow:SetIsAutoRunning(0)
+            return
+        end
+
         local d_x = current_position.x - target_position.x
         local d_y = current_position.y - target_position.y
 
@@ -145,26 +182,80 @@ local function move_to_position(target_position)
         if ( delta_dist <= 0.5 ) then
             at_position = true
         end
+
         iterations = iterations - 1
+        if ( iterations == 0 ) then
+            print(chat.header('autopath') .. chat.message("Could not navigate to position in 10 seconds"))
+            autopath.playing = false
+            autofollow:SetIsAutoRunning(0)
+            return
+        end
 
         coroutine.sleep(0.1)
     end
 
     autofollow:SetIsAutoRunning(0)
+    return true
 end
 
+local function path_by_name(path_name)
+    for _, path in ipairs(autopath.settings.paths) do
+        if path['name'] == path_name then
+            return path
+        end
+    end
+    return
+end
 
+local function play_path(path_name)
+    local path = path_by_name(path_name)
+    if ( not path ) then
+        print(chat.header('autopath') .. chat.message(string.format("Could not find path by name %s", path_name)))
+    end
 
+    autopath.playing = true
+    for _, node in ipairs(path.nodes) do
+        if ( not autopath.playing ) then
+            break
+        end
 
+        local success = move_to_position(node)
+        if ( not success ) then
+            print(chat.header('autopath') .. chat.message("Unable to path to node, stopping playback"))
+            autopath.playing = false
+            return
+        end
+    end
+
+    print(chat.header('autopath') .. chat.message("Destination reached, stopping playback"))
+    autopath.playing = false
+    return
+end
 
 local function record_path(path_name)
     autopath.recording = true
+    nodes = T{}
+
     while( autopath.recording ) do
         local position = get_position()
-        print_table(position)
+        if ( not position ) then
+            print(chat.header('autopath') .. chat.message("Could not get current position, stopping recording"))
+            autopath.recording = false
+            return
+        end
+
+        table.insert(nodes, position)
 
         coroutine.sleep(autopath.settings.record_interval)
     end
+
+    local path = T{
+        name = path_name,
+        nodes = deduplicate_nodes(nodes)
+    }
+
+    save_path(path)
+    return true
 end
 
 
@@ -200,6 +291,7 @@ ashita.events.register('command', 'command_cb', function(e)
             local path_name = command_args[3]
             if path_name then
                 print(chat.header('autopath') .. chat.message(string.format("Playing %s", path_name)))
+                play_path(path_name)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath play <name>"))
             end
@@ -208,18 +300,36 @@ ashita.events.register('command', 'command_cb', function(e)
             autopath.playing = false
             print(chat.header('autopath') .. chat.message("Stopped"))
         elseif table.contains({'list'}, command_args[2]) then
-            print_paths()
-        elseif table.contains({'debug'}, command_args[2]) then
-            local position = get_position()
-            if not position then
-                return
+            if ( #autopath.settings.paths == 0 ) then
+                print(chat.header('autopath') .. chat.message("No recorded paths"))
+            else
+                for _, path in pairs(autopath.settings.paths) do
+                    print(chat.header('autopath') .. chat.message(path.name))
+                end
             end
-            print_table(position)
+        elseif table.contains({'delete'}, command_args[2]) then
+            local path_name = command_args[3]
+            if path_name then
+                delete_path_by_name(path_name)
+            else
+                print(chat.header('autopath') .. chat.message("Name required: /autopath delete <name>"))
+            end
+        elseif table.contains({'debug'}, command_args[2]) then
+            -- local position = get_position()
+            -- if not position then
+            --     return
+            -- end
+            -- print_table(position)
 
-            local new_position = copyAndModify(position, 'x', position.x - 0)
-            new_position = copyAndModify(new_position, 'y', position.y + 20)
-            autopath.playing = true
-            move_to_position(new_position)
+            -- local new_position = copyAndModify(position, 'x', position.x - 50)
+            -- new_position = copyAndModify(new_position, 'y', position.y + 50)
+            -- autopath.playing = true
+            -- move_to_position(new_position)
+
+            -- print_table(autopath.paths[1])
+            -- local new_path = autopath.paths[1]
+            -- new_path.nodes = deduplicate_nodes(autopath.paths[1].nodes)
+            -- print_table(new_path)
         else
             print(chat.header('autopath') .. chat.message("/autopath record <name>"))
             print(chat.header('autopath') .. chat.message("/autopath play <name>"))
