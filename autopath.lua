@@ -179,6 +179,18 @@ function calculate_fuzzy_score(str1, str2)
 end
 
 function fuzzy_match_path_by_name(path_name)
+    local matches = 0
+    for _, path in ipairs(autopath.settings.paths) do
+        local match = path.name:sub(1, #path_name) == path_name
+        if match then
+            matches = matches + 1
+        end
+    end
+    
+    if matches > 1 then
+        return nil
+    end
+
     local best_path = nil
     local best_score = -1
 
@@ -192,15 +204,6 @@ function fuzzy_match_path_by_name(path_name)
     end
 
     return best_path
-end
-
-local function path_by_name(path_name)
-    for _, path in ipairs(autopath.settings.paths) do
-        if path['name'] == path_name then
-            return path
-        end
-    end
-    return
 end
 
 local function find_closest_node(nodes)
@@ -341,6 +344,13 @@ ashita.events.register('command', 'command_cb', function(e)
                 delete_path_by_name(path_name)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath delete <name>"))
+            end
+        elseif table.contains({'debug'}, command_args[2]) then
+            local path = fuzzy_match_path_by_name(command_args[3])
+            if path then
+                print(path.name)
+            else
+                print("No path found")
             end
         elseif command_args[2] then
             local path_name = command_args[2]
