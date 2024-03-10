@@ -169,6 +169,7 @@ local function play_path(path_name)
     local path = path_by_name(path_name)
     if ( not path ) then
         print(chat.header('autopath') .. chat.message(string.format("Could not find path by name %s", path_name)))
+        return
     end
 
     autopath.playing = true
