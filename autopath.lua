@@ -1,45 +1,3 @@
-local function print_table(node, indent)
-    indent = indent or 0
-
-    for key, value in pairs(node) do
-        if type(value) == "table" then
-            print((" "):rep(indent) .. key .. ":")
-            print_table(value, indent + 2)
-        else
-            print((" "):rep(indent) .. key .. ": " .. tostring(value))
-        end
-    end
-end
-
-function printMethods(obj)
-    local metatable = getmetatable(obj)
-
-    if metatable and type(metatable) == "table" then
-        print("Methods:")
-        for key, value in pairs(metatable) do
-            if type(value) == "function" then
-                print(key)
-            end
-        end
-    else
-        print("No metatable found or metatable is not a table.")
-    end
-end
-
-function copyAndModify(original, keyToModify, newValue)
-    local copy = {}
-
-    -- Copy each key-value pair
-    for key, value in pairs(original) do
-        copy[key] = value
-    end
-
-    -- Modify the specified key in the copy
-    copy[keyToModify] = newValue
-
-    return copy
-end
-
 require('common')
 local chat = require('chat')
 local settings = require('settings')
@@ -258,13 +216,6 @@ local function record_path(path_name)
     return true
 end
 
-
-
-
-
-
-
-
 settings.register('settings', 'settings_update', function (s)
     if (s ~= nil) then
         todbot.settings = s
@@ -314,27 +265,13 @@ ashita.events.register('command', 'command_cb', function(e)
             else
                 print(chat.header('autopath') .. chat.message("Name required: /autopath delete <name>"))
             end
-        elseif table.contains({'debug'}, command_args[2]) then
-            -- local position = get_position()
-            -- if not position then
-            --     return
-            -- end
-            -- print_table(position)
-
-            -- local new_position = copyAndModify(position, 'x', position.x - 50)
-            -- new_position = copyAndModify(new_position, 'y', position.y + 50)
-            -- autopath.playing = true
-            -- move_to_position(new_position)
-
-            -- print_table(autopath.paths[1])
-            -- local new_path = autopath.paths[1]
-            -- new_path.nodes = deduplicate_nodes(autopath.paths[1].nodes)
-            -- print_table(new_path)
         else
-            print(chat.header('autopath') .. chat.message("/autopath record <name>"))
-            print(chat.header('autopath') .. chat.message("/autopath play <name>"))
-            print(chat.header('autopath') .. chat.message("/autopath stop"))
-            print(chat.header('autopath') .. chat.message("/autopath list"))
+            print(chat.header('autopath') .. chat.message("/autopath record <name> - Begins recording path"))
+            print(chat.header('autopath') .. chat.message("/autopath stop - Stop recording or playing path"))
+            print(chat.header('autopath') .. chat.message("/autopath play <name> - Play a path"))
+            print(chat.header('autopath') .. chat.message("/autopath delete <name> - Delete a path"))
+            print(chat.header('autopath') .. chat.message("/autopath list - List paths"))
+
         end
     end
     return false
