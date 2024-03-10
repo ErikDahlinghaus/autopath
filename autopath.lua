@@ -10,6 +10,7 @@ addon.link = 'https://github.com/ErikDahlinghaus/autopath'
 
 local default_settings = T{
     record_interval = 0.3,
+    max_distance_to_path = 20,
     paths = T{}
 }
 
@@ -165,6 +166,29 @@ local function path_by_name(path_name)
     return
 end
 
+local function find_closest_node(nodes)
+    local current_position = get_position()
+
+    local closest_node = T{
+        index = nil,
+        distance = math.huge
+    }
+    
+    for i, node_position in ipairs(nodes) do
+        local distance = math.sqrt(
+            (node_position.x - current_position.x)^2 +
+            (node_position.y - current_position.y)^2
+        )
+
+        if distance < closest_node.distance then
+            closest_node.distance = distance
+            closest_node.index = i
+        end
+    end
+
+    return closest_node
+end
+
 local function play_path(path_name)
     local path = path_by_name(path_name)
     if ( not path ) then
@@ -178,8 +202,16 @@ local function play_path(path_name)
         return
     end
 
+    local closest_node = find_closest_node(path.nodes)
+    if ( closest_node.distance >= autopath.settings.max_distance_to_path ) then
+        print(chat.header('autopath') .. chat.message("Too far from path to start"))
+        return
+    end
+
     autopath.playing = true
-    for _, node in ipairs(path.nodes) do
+    for i = closest_node.index, #path.nodes do
+
+        local node = path.nodes[i]
         if ( not autopath.playing ) then
             break
         end
