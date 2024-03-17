@@ -421,6 +421,7 @@ local function try_number(string)
         return number
     end
     return string
+end
 
 ashita.events.register('command', 'command_cb', function(e)
     local command_args = e.command:lower():args()
