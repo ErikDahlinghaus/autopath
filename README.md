@@ -7,6 +7,7 @@ An Ashita4 addon for recording and playing back paths.
 /autopath stop - Stop recording or playing path
 /autopath play <name> - Play a path
 /autopath reverse <name> - Play a path in reverse
+/autopath loop <name> - Play a path continously in a loop
 /autopath delete <name> - Delete a path
 /autopath list - List paths
 /autopath config - List configs

@@ -325,6 +325,49 @@ local function play_path_reverse(path_name)
     return
 end
 
+local function play_path_loop(path_name)
+    if ( autopath.playing ) then
+        autopath.playing = false
+        print(chat.header('autopath') .. chat.message("Stopped previous path"))
+        coroutine.sleep(0.1)
+    end
+
+    local path = fuzzy_match_path_by_name(path_name)
+    if ( not path ) then
+        print(chat.header('autopath') .. chat.message(string.format("Could not find path by name %s", path_name)))
+        return
+    end
+
+    print(chat.header('autopath') .. chat.message(string.format("Playing %s", path.name)))
+    local closest_node = find_closest_node(path.nodes)
+    if ( closest_node.distance >= autopath.settings.max_distance_to_path ) then
+        print(chat.header('autopath') .. chat.message("Too far from path to start"))
+        return
+    end
+
+    autopath.playing = true
+    while autopath.playing do
+        for i = 1, #path.nodes do
+            local node = path.nodes[i]
+            if ( not autopath.playing ) then
+                autopath.playing = false
+                return
+            end
+
+            local success = move_to_position(node)
+            if ( not success ) then
+                print(chat.header('autopath') .. chat.message("Unable to path to node, stopping playback"))
+                autopath.playing = false
+                return
+            end
+        end
+    end
+
+    print(chat.header('autopath') .. chat.message("Destination reached, stopping playback"))
+    autopath.playing = false
+    return
+end
+
 local function record_path(path_name)
     autopath.recording = true
     nodes = T{}
@@ -395,7 +438,14 @@ ashita.events.register('command', 'command_cb', function(e)
             if path_name then
                 play_path_reverse(path_name)
             else
-                print(chat.header('autopath') .. chat.message("Name required: /autopath play <name>"))
+                print(chat.header('autopath') .. chat.message("Name required: /autopath reverse <name>"))
+            end
+        elseif table.contains({'loop'}, command_args[2]) then
+            local path_name = command_args[3]
+            if path_name then
+                play_path_loop(path_name)
+            else
+                print(chat.header('autopath') .. chat.message("Name required: /autopath loop <name>"))
             end
         elseif table.contains({'stop'}, command_args[2]) then
             autopath.recording = false
@@ -452,6 +502,7 @@ ashita.events.register('command', 'command_cb', function(e)
             print(chat.header('autopath') .. chat.message("/autopath stop - Stop recording or playing path"))
             print(chat.header('autopath') .. chat.message("/autopath play <name> - Play a path"))
             print(chat.header('autopath') .. chat.message("/autopath reverse <name> - Play a path in reverse"))
+            print(chat.header('autopath') .. chat.message("/autopath loop <name> - Play a path continously in a loop"))
             print(chat.header('autopath') .. chat.message("/autopath delete <name> - Delete a path"))
             print(chat.header('autopath') .. chat.message("/autopath list - List paths"))
             print(chat.header('autopath') .. chat.message("/autopath config - List configs"))
