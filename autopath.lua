@@ -415,6 +415,13 @@ local function valid_config_keys()
     return valid_keys
 end
 
+local function try_number(string)
+    local number = tonumber(string)
+    if number then
+        return number
+    end
+    return string
+
 ashita.events.register('command', 'command_cb', function(e)
     local command_args = e.command:lower():args()
     if table.contains({'/autopath'}, command_args[1]) then
@@ -490,7 +497,7 @@ ashita.events.register('command', 'command_cb', function(e)
                     return
                 end
 
-                autopath.settings[update_key] = update_value
+                autopath.settings[update_key] = try_number(update_value)
                 settings.save()
                 print(chat.header('autopath') .. chat.message(string.format("%s = %s", update_key, autopath.settings[update_key])))
             end
